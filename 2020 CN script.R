@@ -33,14 +33,16 @@ library(ggplot2)
 FDEPgetdata::getdata_fw_exclusions('CN_EXCLUSIONS_2020')
 
 # Function getdata_fw_exclusions creates a dataframe names 'Exclusions' from the 
-#  information provided.
+#  information provided. Total nitrogen (F.A.C. 62-302.531), total phosphorus (F.A.C. 62-302.531), 
+#  and dissolved oxygen (F.A.C. 62-302.533) criteria are added for each record
+#  based on the corresponding nutrient watershed region and bioregion.
 
 # Create new data frame from the one just created.
 
 CN.SITES<-Exclusions
 names(CN.SITES)
 
-# Convert to Decimal degrees and do map projection
+# Convert to Decimal degrees
 
 deg <- floor(CN.SITES$RANDOM_LATITUDE/10000)
 min <- floor((CN.SITES$RANDOM_LATITUDE - deg*10000)/100)
@@ -97,7 +99,7 @@ addmargins(table(dsgn_sf$EXCLUSION_CATEGORY, dsgn_sf$TNT, useNA = 'ifany'))
 
 # Note need frame size here found in design doc for canal site selections
 #  Z:\Chris site selection process\2020 site selections\2020 canals\Florida 2020 Canal Design.doc
-#  From design document framesize in miles = 3921.3123 for entire data frame.
+#  From design document framesize in kilometers = 3921.3123 for entire data frame.
 
 framesize <- c("ZONE 3"=562.7099 ,"ZONE 4"=425.2503 ,
                "ZONE 5"=923.2930 ,"ZONE 6"=2010.0591)
@@ -116,8 +118,8 @@ addmargins(tapply(dsgn_sf$wgt, dsgn_sf$REPORTING_UNIT, sum))
 #  target population.
 
 # Estimate Extent Canal Area.
-# Since the sample frame includes portions of canal object polygons that do not 
-#  meet the defnition of a canal, the site evaluation information is used 
+# Since the sample frame includes portions of canal object line segments that do not 
+#  meet the definition of a canal, the site evaluation information is used 
 #  to estimate the canal miles in the target population for entire state and for 
 #  each of the reporting units/basins.
 
@@ -143,7 +145,7 @@ write.csv(ExtentEst,file = 'ExtentEst.csv')
 # Of the 3921.3123 canal miles in the sample frame, 98.99% is estimated to be in the 
 #  target population, i.e., 3881.56 miles. Also, only 87.24% of the sample frame 
 #  could actually be sampled. To estimate the percent of the target population 
-#  that could be sampled, requires that the analysis be stricted to just sites 
+#  that could be sampled, requires that the analysis be restricted to just sites 
 #  in the target population, i.e., TNT = "T"
 
 sites <- data.frame(siteID = dsgn_sf$PK_RANDOM_SAMPLE_LOCATION, Use = dsgn_sf$TNT == "T" )
@@ -174,10 +176,10 @@ write.csv(ExtentEst_Target, file = 'ExtentEst_Target.csv')
 
 # Run function of FDEPgetdata package to pull result data. 
 #
-# Insert varible name between parentheses in function call below. The
+# Insert variable name between parentheses in function call below. The
 #  function will pull the water resource for the water resource by year. 
-#  For example canal projects during year 2018 the enty would be "'CN18'"
-#  Entering "'CN18','CN19','CN20'" for arg2 will produce a dataframe for 
+#  For example canal projects during year 2018 the entry would be "'CN18'"
+#  Entering "'CN18','CN19','CN20'" for the variable will produce a dataframe for 
 #  FDEP Status Canals sampled 2018 - 2020.
 #  Be sure to enclose in double and single quotes.
 #
@@ -185,7 +187,7 @@ write.csv(ExtentEst_Target, file = 'ExtentEst_Target.csv')
 
 FDEPgetdata::getdata_results("'CN20'")
 
-# Function getdata_fw_results creates the table 'Results'.
+# Function getdata_results creates the table 'Results'.
 
 # Create new data frame from the one just created.
 CN_RSLTS<-Results
@@ -194,12 +196,14 @@ names(CN_RSLTS)
 # Determine sample types in file.
 addmargins(table(CN_RSLTS$SAMPLE_TYPE, CN_RSLTS$MATRIX, useNA = 'ifany'))
 
-# Note that have BLANK, BOTTOM and PRIMARY data and matrix types. A total of 60 
-#  sites sampled for water quality. Site Z5-CN-14007 had to be resampled for some reason. 
-#  Only want to use PRIMARY results for population estimation.
+# Note that have BLANK, BOTTOM and PRIMARY data and matrix types. 
+# Only want to use PRIMARY results for population estimation.
 
 # Water Quality Analyses
-# Water quality analyses are based on 61 sites from the results file and must be merged with design information.
+# Water quality analyses are based on 61 sites from the results file and must 
+#  be merged with design information. This merge will remove any result data 
+#  marked as inappropriate for Status Network analysis (i.e. where 
+#  pk_random_sample_location contains "B").
 
 keep <- CN_RSLTS$SAMPLE_TYPE == 'PRIMARY' & CN_RSLTS$MATRIX == 'WATER'
 
@@ -214,7 +218,8 @@ CN_WQ <- merge(as.data.frame(dsgn_sf)[, c("PK_RANDOM_SAMPLE_LOCATION",
 # check that have only PRIMARY for Water MATRIX data
 addmargins(table(CN_WQ$SAMPLE_TYPE, CN_WQ$MATRIX, useNA = 'ifany'))
 
-# Note that only sample used for site Z5-CN-14007 is the one containing the WQ data. 
+# Note that the number of samples in analysis is now 60. 
+#  Sample for Z5-CN-14007B was removed from analysis.
 
 
 #########################################################################################
@@ -276,8 +281,12 @@ Chlorophyll_cat <- cut(CN_WQ$Chlorophyll_A_Monochromatic, breaks=c(0,20,10000), 
 CN_WQ$Chlorophyll_cat <- Chlorophyll_cat
 CN_WQ$Chlorophyll_cat <- as.factor(CN_WQ$Chlorophyll_cat)
 
+### Calculate Total Nitrogen (TN) as sum of TKN & NO3NO2.
 ### Numeric Nutrient and DO Categories
 ### Note Pass=1 AND Fail=0
+### Total NNC category = sum of category results for TN, TP, and DO. 
+###  If Tot_cat = 3, sample passed criteria for these 3 parameters.
+
 
 CN_WQ$TN<-(CN_WQ$Kjeldahl_Nitrogen_Total_as_N+CN_WQ$NitrateNitrite_Total_as_N)
 
@@ -311,7 +320,7 @@ dsgn_WQ <- data.frame(siteID = CN_WQ$PK_RANDOM_SAMPLE_LOCATION,
 
 data.cont.WQ <- data.frame(siteID=CN_WQ$PK_RANDOM_SAMPLE_LOCATION, 
                            CN_WQ[,c('Oxygen_Dissolved_Field','pH_Field','Escherichia_Coli_Quanti_Tray',
-                                    'Chlorophyll_A_Monochromatic','TAmm_Cat','TN','Phosphorus_Total_as_P')])
+                                    'Chlorophyll_A_Monochromatic','Ammonia_Total_as_N','TN','Phosphorus_Total_as_P')])
 Water_quality_Cont <- cont.analysis(sites = sites_WQ, subpop = subpop_WQ, 
                                design = dsgn_WQ, data.cont = data.cont.WQ, conf=95)
 
@@ -319,6 +328,7 @@ Water_quality_Cont <- cont.analysis(sites = sites_WQ, subpop = subpop_WQ,
 
 data.cat.wq <- data.frame(siteID = CN_WQ$PK_RANDOM_SAMPLE_LOCATION,
                            Ammonia_Category = CN_WQ$TAmm_Cat,
+                           Chlorophyll_Category = CN_WQ$Chlorophyll_cat,
                            TN_Category = CN_WQ$TN_cat,
                            TP_Category = CN_WQ$TP_cat,
                            DO_Category = CN_WQ$DO_cat,
