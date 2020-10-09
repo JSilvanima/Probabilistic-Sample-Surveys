@@ -57,13 +57,14 @@ CN.SITES$londd <- deg + min/60 + sec/3600
 CN.SITES$londd <- -CN.SITES$londd
 
 # Create sf object and transform to Albers projection for analysis
-#  This codes utilizes Coordinate Reference System (CRS) Codes.
-#  The first crs code below is for NAD 83 Harn datum the second crs code
-#  is for Florida albers projection. More information on these codes is found here:
+#  This codes utilizes Coordinate Reference System (CRS/EPSG) Codes.
+#  The first crs code (4269) below is for NAD 83 coordinate system the 
+#  second crs code (3087) is for Florida albers projection. 
+#  More information on these codes is found here: 
 #  https://www.nceas.ucsb.edu/sites/default/files/2020-04/OverviewCoordinateReferenceSystems.pdf.
 
 dsgn_CN <- st_as_sf(CN.SITES, coords = c("londd", "latdd"), remove = FALSE,
-                    crs = 4152)
+                    crs = 4269)
 dsgn_sf <- st_transform(dsgn_CN, crs = 3087)
 
 # keep xy coords as variables
